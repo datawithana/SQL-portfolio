@@ -1,0 +1,185 @@
+/* Sales Analysis 
+
+1. What are the total sales, profit, and profit margins over a specific time period?
+2. Which products or product categories contribute the most to revenue and profit?
+3. Are there any seasonal trends or patterns in sales performance? 
+
+*/ 
+
+-- --------------------------------------------------------------- --
+-- 0. Understanding the data ------------------------------------- --
+-- --------------------------------------------------------------- --
+
+USE superstore;
+SHOW TABLES;
+DESCRIBE all_superstore;
+
+SELECT * FROM all_superstore; # There are 9993 rows of data.
+
+SELECT COUNT(DISTINCT YEAR(OrderDate)) AS data_years
+FROM all_superstore; # There are 4 years of data inside Superstore's Database.
+
+SELECT MIN(OrderDate) AS first_order_date
+FROM all_superstore; # The first order in the database was made on 2014-01-03.
+
+SELECT MAX(OrderDate) AS lastest_order_date
+FROM all_superstore; # The latest order in the database was made on 2017-12-30.
+
+SELECT YEAR(OrderDate) AS year_value, COUNT(DISTINCT OrderID) AS distinct_order_count
+FROM all_superstore
+GROUP BY YEAR(OrderDate)
+ORDER BY YEAR(OrderDate); # Orders received was increasing from year 2014 to 2017.
+
+SELECT YEAR(OrderDate) as year_value, AVG(days_difference) AS average_days_difference
+FROM ( 
+  SELECT DISTINCT OrderID, OrderDate, ShipDate, DATEDIFF(ShipDate, OrderDate) AS days_difference
+  FROM all_superstore
+  ) AS subquery
+GROUP BY YEAR(OrderDate)
+ORDER BY YEAR(OrderDate); # In 2017, on average, an order takes about 4 days to be delivered.
+
+SELECT YEAR(OrderDate) as year_value, MIN(days_difference) AS min_days_difference
+FROM ( 
+  SELECT DISTINCT OrderID, OrderDate, ShipDate, DATEDIFF(ShipDate, OrderDate) AS days_difference
+  FROM all_superstore
+  ) AS subquery
+GROUP BY YEAR(OrderDate)
+ORDER BY YEAR(OrderDate); # Superstore is able to provide same day delivery.
+
+SELECT YEAR(OrderDate) as year_value, MAX(days_difference) AS max_days_difference
+FROM ( 
+  SELECT DISTINCT OrderID, OrderDate, ShipDate, DATEDIFF(ShipDate, OrderDate) AS days_difference
+  FROM all_superstore
+  ) AS subquery
+GROUP BY YEAR(OrderDate)
+ORDER BY YEAR(OrderDate); #Longest day to deliver takes about 7 days.
+
+-- --------------------------------------------------------------- --
+-- 1. Superstore's total sales, profit and profit margins -------- --
+-- --------------------------------------------------------------- --
+
+SELECT YEAR(OrderDate) AS Sales_Year,
+COUNT (DISTINCT OrderID) as Order_Counts,
+SUM (Sales) AS Total_Revenue,
+SUM (Profit) AS Total_Profits,
+(SUM (Profit)/SUM (Sales))*100 AS Profit_Margin
+FROM all_superstore
+GROUP BY YEAR(OrderDate)
+ORDER BY YEAR(OrderDate); # Shows Superstore's revenue, profit and profit margin from year 2014 to 2017.
+
+SELECT
+    MONTHNAME(OrderDate) AS Month,
+    SUM(CASE WHEN YEAR(OrderDate) = 2014 THEN Sales ELSE 0 END) AS '2014',
+    SUM(CASE WHEN YEAR(OrderDate) = 2015 THEN Sales ELSE 0 END) AS '2015',
+    SUM(CASE WHEN YEAR(OrderDate) = 2016 THEN Sales ELSE 0 END) AS '2016',
+    SUM(CASE WHEN YEAR(OrderDate) = 2017 THEN Sales ELSE 0 END) AS '2017'
+FROM all_superstore
+GROUP BY MONTHNAME(OrderDate), MONTH(OrderDate)
+ORDER BY MONTH(OrderDate); # Shows monthly revenue from 2014 to 2017
+
+-- --------------------------------------------------------------- --
+-- 2. Products and cateories that contribute most to revenue & profit
+-- --------------------------------------------------------------- --
+
+SELECT 'ProductID' AS Description, 
+COUNT(DISTINCT ProductID) AS Counts
+FROM all_superstore
+UNION ALL
+SELECT 'ProductName' AS Description, 
+COUNT(DISTINCT ProductName) AS Counts
+FROM all_superstore
+UNION ALL
+SELECT 'Category' AS Description,
+COUNT(DISTINCT Category) AS Counts
+FROM all_superstore
+UNION ALL
+SELECT 'SubCategory' AS Description,
+COUNT(DISTINCT SubCategory) AS Counts
+FROM all_superstore;
+
+# There are 1,862 distinct products based on its ProductID, 1,850 product names, 3 categories and 17 subcategories.
+
+SELECT YEAR(OrderDate) as Sales_Year, Category, SUM(Quantity) AS total_quantity_sold
+FROM all_superstore
+GROUP BY YEAR(OrderDate), Category
+ORDER BY total_quantity_sold DESC; # Among all the categories, Office Supplies category had the highest sales count in all products
+
+SELECT YEAR(OrderDate) as Sales_Year, SubCategory, SUM(Quantity) AS total_quantity_sold
+FROM all_superstore
+GROUP BY YEAR(OrderDate), SubCategory
+ORDER BY total_quantity_sold DESC; #Binders had the highest sales count in all products from 2014 to 2017.
+
+SELECT YEAR(OrderDate) as Sales_Year, ProductName, Category, SubCategory, SUM(Quantity) AS total_quantity_sold
+FROM all_superstore
+GROUP BY YEAR(OrderDate), ProductName, Category, SubCategory
+ORDER BY total_quantity_sold DESC; #Staple-related products had the highest sales counts.
+
+-- Most profitable products  ------------------------------------- --
+
+SELECT ProductName, Category, SubCategory, SUM(Quantity) AS total_quantity_sold, SUM (Sales) AS total_revenue, SUM (Profit) as total_profit
+FROM all_superstore
+GROUP BY ProductName, Category, SubCategory
+ORDER BY total_profit DESC; #Canon imageCLASS 2200 Advanced Copier was the most profitable product
+
+SELECT ProductName, Category, SubCategory, SUM(Quantity) AS total_quantity_sold, SUM (Sales) AS total_revenue, SUM (Profit) as total_profit
+FROM all_superstore
+GROUP BY ProductName, Category, SubCategory
+ORDER BY total_revenue DESC; #Canon imageCLASS 2200 Advanced Copier generated the highest revenue
+
+SELECT Category, SubCategory, SUM(Quantity) AS total_quantity_sold, SUM (Sales) AS total_revenue, SUM (Profit) as total_profit
+FROM all_superstore
+GROUP BY Category, SubCategory
+ORDER BY total_profit DESC; #Copiers is the subcategory that generated the highest profit
+
+SELECT Category, SUM(Quantity) AS total_quantity_sold, SUM (Sales) AS total_revenue, SUM (Profit) as total_profit
+FROM all_superstore
+GROUP BY Category
+ORDER BY total_profit DESC; #Technology category generated the highest profit
+
+-- --------------------------------------------------------------- --
+-- 3. Seasonal trends or patterns in sales performance ----------- --
+-- --------------------------------------------------------------- --
+
+SELECT MONTHNAME(OrderDate) AS MONTH,
+    SUM(Sales) AS total_revenue,
+    SUM(Profit) AS total_profits,
+    (SUM(Profit) / SUM(Sales)) * 100 AS net_profit_margin
+FROM all_superstore
+WHERE YEAR(OrderDate) = 2017
+GROUP BY MONTHNAME(OrderDate), MONTH(OrderDate)
+ORDER BY MONTH(OrderDate); # Sales fluctuates. November had the highest sales while February had the lowest.
+
+SELECT MONTHNAME(OrderDate) AS MONTH,
+    SUM(Sales) AS total_revenue,
+    SUM(Profit) AS total_profits,
+    (SUM(Profit) / SUM(Sales)) * 100 AS net_profit_margin
+FROM all_superstore
+WHERE YEAR(OrderDate) = 2016
+GROUP BY MONTHNAME(OrderDate), MONTH(OrderDate)
+ORDER BY MONTH(OrderDate); # Sales fluctuates. December had the highest sales while January had the lowest.
+
+SELECT MONTHNAME(OrderDate) AS MONTH,
+    SUM(Sales) AS total_revenue,
+    SUM(Profit) AS total_profits,
+    (SUM(Profit) / SUM(Sales)) * 100 AS net_profit_margin
+FROM all_superstore
+WHERE YEAR(OrderDate) = 2015
+GROUP BY MONTHNAME(OrderDate), MONTH(OrderDate)
+ORDER BY MONTH(OrderDate); # Sales fluctuates. November had the highest sales while February had the lowest.
+
+SELECT MONTHNAME(OrderDate) AS MONTH,
+    SUM(Sales) AS total_revenue,
+    SUM(Profit) AS total_profits,
+    (SUM(Profit) / SUM(Sales)) * 100 AS net_profit_margin
+FROM all_superstore
+WHERE YEAR(OrderDate) = 2014
+GROUP BY MONTHNAME(OrderDate), MONTH(OrderDate)
+ORDER BY MONTH(OrderDate); # Sales fluctuates. September had the highest sales while February had the lowest.
+
+SELECT YEAR(OrderDate) as YEAR, MONTHNAME(OrderDate) AS MONTH,
+    SUM(Sales) AS total_revenue,
+    SUM(Profit) AS total_profits,
+    (SUM(Profit) / SUM(Sales)) * 100 AS net_profit_margin
+FROM all_superstore
+GROUP BY YEAR(OrderDate), MONTHNAME(OrderDate), MONTH(OrderDate)
+ORDER BY MONTH(OrderDate); #Shows all sales per month from 2014 to 2017.
