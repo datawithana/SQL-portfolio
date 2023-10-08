@@ -1,0 +1,139 @@
+/* 
+
+Datasets: Superstore Dataset
+Source: https://www.kaggle.com/datasets/vivek468/superstore-dataset-final
+
+Dataset was downloaded from Kaggle and reuploaded in the database called Superstore. 
+
+Questions? Feel free to reach out! :)
+
+*/
+
+DROP TABLE all_superstore;
+
+USE superstore;
+
+CREATE TABLE all_superstore (
+    RowID INT (4),
+    OrderID VARCHAR(50),
+    OrderDate DATE,
+    ShipDate DATE,
+    ShipMode VARCHAR(20),
+    CustomerID VARCHAR(10),
+    CustomerName VARCHAR(50),
+    Segment VARCHAR(20),
+    Country VARCHAR(20) DEFAULT ("United States"),
+    City VARCHAR(50),
+    State VARCHAR(50),
+    PostalCode INT (6),
+    Region VARCHAR(50),
+    ProductID VARCHAR(50),
+    Category VARCHAR(50),
+    SubCategory VARCHAR(50),
+    ProductName VARCHAR(200),
+    Sales FLOAT (15, 2),
+    Quantity INT (4),
+    Discount FLOAT (4, 2),
+    Profit FLOAT (15, 2),
+    PRIMARY KEY (RowID)
+);
+
+-- --------------------------------------------------------------- --
+-- 1. Understanding the data ------------------------------------- --
+-- --------------------------------------------------------------- --
+
+USE superstore;
+SHOW TABLES;
+DESCRIBE all_superstore;
+
+SELECT *
+FROM all_superstore;
+
+# Superstore's data set contained detailed and granular representation of customer purchases. 
+# With the exception of RowID, all fields can have duplicate values. 
+# This dataset contains duplicated OrderIDs because each row represents a specific product purchased within a single transaction, and multiple products can be bought together in one transaction, leading to multiple rows with the same OrderID.
+
+-- --------------------------------------------------------------- --
+-- 2. Checking for duplicate values ------------------------------ --
+-- --------------------------------------------------------------- --
+
+SELECT
+    OrderID, OrderDate, ShipDate, ShipMode, CustomerID, CustomerName, Segment, Country, City, 
+    State, PostalCode, Region, ProductID, Category, SubCategory, ProductName, Sales, Quantity,
+    Discount, Profit,
+    COUNT(*) AS duplicate_count
+FROM
+    all_superstore
+GROUP BY
+    OrderID, OrderDate, ShipDate, ShipMode, CustomerID, CustomerName, Segment, Country, City, 
+    State, PostalCode, Region, ProductID, Category, SubCategory, ProductName, Sales, Quantity,
+    Discount, Profit
+HAVING
+    COUNT(*) > 1;
+
+# Only one grouped row has 1 duplicate. All entries in the fields related to RowID 3406 and 3407 are the same.
+
+-- --------------------------------------------------------------- --
+-- 3. Cleaning duplicate values ---------------------------------- --
+-- --------------------------------------------------------------- --
+
+DELETE FROM all_superstore
+WHERE RowID NOT IN (
+    SELECT RowID
+    FROM (
+        SELECT
+            RowID,
+            ROW_NUMBER() OVER (
+                PARTITION BY OrderID, OrderDate, ShipDate, ShipMode, CustomerID, CustomerName,
+                Segment, Country, City, State, PostalCode, Region, ProductID, Category,
+                SubCategory, ProductName, Sales, Quantity, Discount, Profit
+                ORDER BY RowID -- This ensures we keep the lowest RowID in case of duplicates
+            ) AS row_num
+        FROM all_superstore
+    ) AS CTE_Duplicates
+    WHERE row_num = 1
+);
+
+-- --------------------------------------------------------------- --
+-- 4. Checking for any null values ------------------------------- --
+-- --------------------------------------------------------------- --
+
+SELECT *
+FROM all_superstore
+WHERE COALESCE(RowID, OrderID, OrderDate, ShipDate, ShipMode, CustomerID, CustomerName, Segment, Country,
+               City, State, PostalCode, Region, ProductID, Category, SubCategory, ProductName,
+               Sales, Quantity, Discount, Profit) IS NULL;
+
+# No null values.
+
+-- --------------------------------------------------------------- --
+-- 5. Checking for empty strings --------------------------------- --
+-- --------------------------------------------------------------- --
+
+SELECT *
+FROM all_superstore
+WHERE
+    OrderID = '' OR
+    ShipMode = '' OR
+    CustomerID = '' OR
+    CustomerName = '' OR
+    Segment = '' OR
+    Country = '' OR
+    City = '' OR
+    State = '' OR
+    ProductID = '' OR
+    Category = '' OR
+    SubCategory = '' OR
+    ProductName = '';
+
+-- --------------------------------------------------------------- --
+-- 6. Updating empty strings ------------------------------------- --
+-- --------------------------------------------------------------- --
+
+UPDATE all_superstore
+SET Country = 'United States'
+WHERE Country = "";
+
+
+
+
